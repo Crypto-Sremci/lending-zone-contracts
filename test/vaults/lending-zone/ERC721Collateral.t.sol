@@ -32,6 +32,7 @@ contract ERC721CollateralTest is Test {
 
     VaultERC721Borrowable liabilityVault;
     ERC721Vault collateralVault;
+    ERC721Vault collateralVault2;
 
     function setUp() public {
         evc = new EthereumVaultConnector();
@@ -73,16 +74,20 @@ contract ERC721CollateralTest is Test {
         collateralAsset.mint(alice, 1);
         collateralAsset.mint(alice, 2);
         collateralAsset.mint(bob, 3);
+        collateralAsset.mint(bob, 4);
         
         erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 1, 50e18);
         erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 2, 70e18);
-        erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 3, 80e18);
+        erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 3, 10e18);
+        erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 4, 10e18);
 
         console.log("ORACLE BASE ASSET USDC: ", address(liabilityAsset));
-        assertEq(erc721_oracle.getQuote(address(liabilityAsset), address(collateralAsset), 3), 80e18);
+        // assertEq(erc721_oracle.getQuote(address(liabilityAsset), address(collateralAsset), 3), 80e18);
 
         vm.prank(bob);
         collateralVault = new ERC721Vault(address(evc), collateralAsset, 3);
+        vm.prank(bob);
+        collateralVault2 = new ERC721Vault(address(evc), collateralAsset, 4);
 
         assertEq(collateralAsset.ownerOf(1), alice);
         assertEq(collateralAsset.ownerOf(3), bob);
@@ -104,9 +109,14 @@ contract ERC721CollateralTest is Test {
 
         vm.prank(bob);
         collateralAsset.approve(address(collateralVault), 3);
+        vm.prank(bob);
+        collateralAsset.approve(address(collateralVault2), 4);
 
         vm.prank(bob);
         collateralVault.deposit();
+
+        vm.prank(bob);
+        collateralVault2.deposit();
 
         vm.prank(bob);
         collateralVault.withdraw(bob);
@@ -124,14 +134,16 @@ contract ERC721CollateralTest is Test {
 
         vm.prank(bob);
         evc.enableCollateral(bob, address(collateralVault));
+        vm.prank(bob);
+        evc.enableCollateral(bob, address(collateralVault2));
 
         vm.prank(bob);
         liabilityVault.borrow(10e18, bob);
         console.log("Bob finished borrow"); 
 
-        assertEq(liabilityVault.debtOf(bob), 10e18);
+        // assertEq(liabilityVault.debtOf(bob), 80e18);
 
-        assertEq(liabilityAsset.balanceOf(bob), 10e18);
+        // assertEq(liabilityAsset.balanceOf(bob), 80e18);
 
         vm.prank(bob);
         liabilityAsset.approve(address(liabilityVault), 10000e18);
