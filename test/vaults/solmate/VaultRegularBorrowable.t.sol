@@ -49,7 +49,7 @@ contract VaultRegularBorrowableTest is Test {
 
         collateralVault2 = new VaultSimple(address(evc), collateralAsset2, "Collateral Vault 2", "CV2");
 
-        erc721CollateralVault = new ERC721Vault(address(evc), erc721CollateralAsset);
+        erc721CollateralVault = new ERC721Vault(address(evc), erc721CollateralAsset, 1);
 
 
         irm.setInterestRate(10); // 10% APY

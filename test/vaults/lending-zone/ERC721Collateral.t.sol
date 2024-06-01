@@ -10,6 +10,9 @@ import {IRMMock} from "../../mocks/IRMMock.sol";
 import {PriceOracleMock} from "../../mocks/PriceOracleMock.sol";
 import {ERC721PriceOracleMock} from "../../../src/vaults/lending-zone/ERC721PriceOracleMock.sol";
 import {ERC721Vault} from "../../../src/vaults/lending-zone/ERC721Vault.sol";
+import {VaultERC721Borrowable} from "../../../src/vaults/lending-zone/VaultERC721Borrowable.sol";
+import "forge-std/console.sol";
+
 
 /**
 * Scenario *
@@ -27,7 +30,7 @@ contract ERC721CollateralTest is Test {
     PriceOracleMock oracle;
     ERC721PriceOracleMock erc721_oracle;
 
-    VaultRegularBorrowable liabilityVault;
+    VaultERC721Borrowable liabilityVault;
     ERC721Vault collateralVault;
 
     function setUp() public {
@@ -38,31 +41,13 @@ contract ERC721CollateralTest is Test {
         irm = new IRMMock();
         oracle = new PriceOracleMock();
         erc721_oracle = new ERC721PriceOracleMock();
-        //mint few ERC721 tokens
 
-        liabilityVault = new VaultRegularBorrowable(
-            address(evc), liabilityAsset, irm, oracle, referenceAsset, "Liability Vault", "LV"
-        );
-
-        collateralVault = new ERC721Vault(address(evc), collateralAsset);
-
-        irm.setInterestRate(10); // 10% APY
-    }
-
-    function mintAndPrice(address alice, address bob) public {
-        collateralAsset.mint(alice, 1);
-        collateralAsset.mint(alice, 2);
-        collateralAsset.mint(bob, 3);
+        liabilityVault = new VaultERC721Borrowable(address(evc), liabilityAsset, irm, oracle, erc721_oracle, liabilityAsset, "Liability Vault", "LV");
 
         oracle.setResolvedAsset(address(liabilityVault));
         oracle.setPrice(address(liabilityAsset), address(referenceAsset), 1e17);
-        
-        erc721_oracle.setPrice(address(referenceAsset), address(collateralAsset), 1, 1e18);
-        erc721_oracle.setPrice(address(referenceAsset), address(collateralAsset), 2, 2e18);
-        erc721_oracle.setPrice(address(referenceAsset), address(collateralAsset), 3, 3e18);
 
-        liabilityAsset.mint(alice, 100e18);
-        assertEq(liabilityAsset.balanceOf(alice), 100e18);
+        irm.setInterestRate(10); // 10% APY
     }
 
     // function mintAndApprove(address alice, address bob) public {
@@ -82,5 +67,60 @@ contract ERC721CollateralTest is Test {
     //     vm.prank(bob);
     //     collateralAsset2.approve(address(collateralVault2), type(uint256).max);
     // }
+
+    function test_borrowAgainstNFT(address alice, address bob) public {
+        /// MINT ASSETS
+        collateralAsset.mint(alice, 1);
+        collateralAsset.mint(alice, 2);
+        collateralAsset.mint(bob, 3);
+        
+        erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 1, 50e18);
+        erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 2, 70e18);
+        erc721_oracle.setPrice(address(liabilityAsset), address(collateralAsset), 3, 80e18);
+
+        console.log("ORACLE BASE ASSET USDC: ", address(liabilityAsset));
+        assertEq(erc721_oracle.getQuote(address(liabilityAsset), address(collateralAsset), 3), 80e18);
+
+        collateralVault = new ERC721Vault(address(evc), collateralAsset, 3);
+
+        assertEq(collateralAsset.ownerOf(1), alice);
+        assertEq(collateralAsset.ownerOf(3), bob);
+
+        liabilityAsset.mint(alice, 100e18);
+        assertEq(liabilityAsset.balanceOf(alice), 100e18);
+
+        vm.prank(alice);
+        liabilityAsset.approve(address(liabilityVault), 100e18);
+        vm.prank(alice);
+        liabilityVault.deposit(30e18, alice);
+
+        vm.expectRevert(abi.encodeWithSelector(EVCUtil.ControllerDisabled.selector));
+        vm.prank(bob);
+        liabilityVault.borrow(10e18, bob);
+
+        vm.prank(bob);
+        evc.enableController(bob, address(liabilityVault));
+
+        vm.prank(bob);
+        collateralAsset.approve(address(collateralVault), 3);
+
+        vm.prank(bob);
+        collateralVault.deposit();
+
+        console.log("Owner of ERC721: ", collateralAsset.ownerOf(3));
+        console.log("Collateral Vault: ", address(collateralVault));
+
+        assertEq(collateralAsset.ownerOf(3), address(collateralVault));
+
+        vm.prank(bob);
+        evc.enableCollateral(bob, address(collateralVault));
+
+        console.log("Before final borrow");
+        vm.prank(bob);
+        liabilityVault.borrow(10e18, bob);
+        console.log("End of test"); 
+    }
+
+    
 
 }

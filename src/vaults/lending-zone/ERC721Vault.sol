@@ -8,11 +8,16 @@ import "solmate/tokens/ERC721.sol";
 import "solmate/utils/SafeTransferLib.sol";
 import "solmate/utils/FixedPointMathLib.sol";
 import "../VaultBase.sol";
+import {IERC721Receiver} from "openzeppelin/token/ERC721/IERC721Receiver.sol";
+
+interface IERC721Vault {
+    function getUnderlyingERC721() view external returns (address, uint256);
+}
 
 /// @title ERC721Vault
 /// @dev ERC721 contract is used as a collateral for the vault.
 /// @notice This is for test purposes only, do not use in production.
-contract ERC721Vault is VaultBase, Owned {
+contract ERC721Vault is VaultBase, Owned, IERC721Receiver, IERC721Vault {
     using FixedPointMathLib for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -38,6 +43,20 @@ contract ERC721Vault is VaultBase, Owned {
     ) VaultBase(_evc) Owned(msg.sender) {
         asset = _asset;
         id = _id;
+    }
+
+    function getUnderlyingERC721() view public returns (address, uint256) {
+        return (address(asset), id);
+    }
+
+    ///@notice implementing this method to be able to receive ERC721 token
+    function onERC721Received(
+        address operator,
+        address from,
+        uint256 tokenId,
+        bytes calldata data
+    ) external returns (bytes4){
+        return IERC721Receiver.onERC721Received.selector;
     }
 
     /// @notice Sets the supply cap of the vault (amount of NFTs that someone can deposit into the vault).

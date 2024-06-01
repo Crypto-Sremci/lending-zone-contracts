@@ -21,6 +21,7 @@ contract Deployment is Script {
     address irm;
     address usdc_aave;
     address oracle;
+    address erc721Collateral;
     function run() public {
         uint deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
@@ -29,23 +30,24 @@ contract Deployment is Script {
         irm = 0x7c8540D5f540A7278C93D301d5Cb8aE37f09508f;
         usdc_aave = 0x94a9D9AC8a22534E3FaCa9F4e7F2E2cf85d5E4C8;
         oracle = 0x19E74257F87584d6c28b6bA84FDC76B9e075319a;
+        erc721Collateral = 0xC1BA3850242763EaF2720B342F8BD43FE59bBA7d;
 
         ERC721PriceOracleMock erc721_oracle = new ERC721PriceOracleMock();
 
-        MockERC721 erc721Collateral = new MockERC721("New Collection", "NC");
-        erc721Collateral.mint(0x38F4152654AaBFA65f0de2296327927FBBA8a381, 1);
-        erc721Collateral.mint(0x5602157948D0dC97de619C7535F1C9345740E05f, 2);
+        // MockERC721 erc721Collateral = new MockERC721("New Collection", "NC");
+        // erc721Collateral.mint(0x38F4152654AaBFA65f0de2296327927FBBA8a381, 1);
+        // erc721Collateral.mint(0x5602157948D0dC97de619C7535F1C9345740E05f, 2);
 
-        // deploy vaults
-        ERC721Vault vault1 = new ERC721Vault(evc, erc721Collateral, 1);
+        // // deploy vaults
+        // ERC721Vault vault1 = new ERC721Vault(evc, erc721Collateral, 1);
 
         // setup the price oracle
-        erc721_oracle.setPrice(usdc_aave, address(erc721Collateral), 1, 100e6);
-        erc721_oracle.setPrice(usdc_aave, address(erc721Collateral), 2, 200e6);
+        erc721_oracle.setPrice(usdc_aave, erc721Collateral, 1, 100e6);
+        erc721_oracle.setPrice(usdc_aave, erc721Collateral, 2, 200e6);
 
         vm.stopBroadcast();
 
         // display the addresses
-        console.log("Vault Asset 1", address(vault1));
+        console.log("ERC721 Oracle: ", address(erc721_oracle));
     }
 }
