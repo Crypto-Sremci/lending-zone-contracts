@@ -19,13 +19,8 @@ contract ERC721Vault is VaultBase, Owned {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Deposit(address indexed caller, address indexed owner, uint256 id);
-    event Withdraw(
-        address indexed caller,
-        address indexed receiver,
-        address indexed owner,
-        uint256 id
-    );
+    event Deposit(address indexed caller, uint256 id);
+    event Withdraw(address indexed caller, address indexed receiver, uint256 id);
     event SupplyCapSet(uint256 newSupplyCap);
 
     error SnapshotNotTaken();
@@ -34,12 +29,15 @@ contract ERC721Vault is VaultBase, Owned {
     uint256 public supplyCap;
     uint256 public totalSupply;
     ERC721 public immutable asset;
+    uint256 public immutable id;
 
     constructor(
         address _evc,
-        ERC721 _asset
+        ERC721 _asset,
+        uint256 _id
     ) VaultBase(_evc) Owned(msg.sender) {
         asset = _asset;
+        id = _id;
     }
 
     /// @notice Sets the supply cap of the vault (amount of NFTs that someone can deposit into the vault).
@@ -88,13 +86,9 @@ contract ERC721Vault is VaultBase, Owned {
     }
 
     /// @notice Deposits an NFT with the certain id to the receiver.
-    /// @param id The id of NFT.
-    /// @param receiver The receiver of the NFT.
-    function deposit(
-        uint256 id,
-        address receiver
-    ) public virtual callThroughEVC nonReentrant {
+    function deposit() public virtual callThroughEVC nonReentrant {
         address msgSender = _msgSender();
+        require(asset.ownerOf(id) == msgSender, "Not Owner");
 
         createVaultSnapshot();
 
@@ -104,19 +98,15 @@ contract ERC721Vault is VaultBase, Owned {
         //increase the total amount of deposited NFTs
         totalSupply++;
 
-        emit Deposit(msgSender, receiver, id);
+        emit Deposit(msgSender, id);
 
         requireVaultStatusCheck();
     }
 
     /// @notice Withdraws an NFT with certain id.
-    /// @param id The id of NFT.
-    /// @param receiver The receiver of the withdrawal.
-    /// @param owner The owner of the assets.
+    /// @param receiver receiver of NFT
     function withdraw(
-        uint256 id,
-        address receiver,
-        address owner
+        address receiver
     ) public virtual callThroughEVC nonReentrant {
         address msgSender = _msgSender();
 
@@ -126,7 +116,7 @@ contract ERC721Vault is VaultBase, Owned {
 
         totalSupply--;
 
-        emit Withdraw(msgSender, receiver, owner, id);
+        emit Withdraw(msgSender, receiver, id);
 
         requireAccountAndVaultStatusCheck(owner);
     }   

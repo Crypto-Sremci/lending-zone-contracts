@@ -3,10 +3,13 @@ pragma solidity ^0.8.19;
 
 import "forge-std/Test.sol";
 import {MockERC20} from "solmate/test/utils/mocks/MockERC20.sol";
+import {MockERC721} from "solmate/test/utils/mocks/MockERC721.sol";
 import "evc/EthereumVaultConnector.sol";
 import "../../../src/vaults/solmate/VaultRegularBorrowable.sol";
 import {IRMMock} from "../../mocks/IRMMock.sol";
 import {PriceOracleMock} from "../../mocks/PriceOracleMock.sol";
+import {ERC721PriceOracleMock} from "../../../src/vaults/lending-zone/ERC721PriceOracleMock.sol";
+import {ERC721Vault} from "../../../src/vaults/lending-zone/ERC721Vault.sol";
 
 contract VaultRegularBorrowableTest is Test {
     IEVC evc;
@@ -14,12 +17,16 @@ contract VaultRegularBorrowableTest is Test {
     MockERC20 liabilityAsset;
     MockERC20 collateralAsset1;
     MockERC20 collateralAsset2;
+    MockERC721 erc721CollateralAsset;
     IRMMock irm;
     PriceOracleMock oracle;
+    ERC721PriceOracleMock erc721_oracle;
 
     VaultRegularBorrowable liabilityVault;
     VaultSimple collateralVault1;
     VaultSimple collateralVault2;
+    ERC721Vault erc721CollateralVault;
+
 
     function setUp() public {
         evc = new EthereumVaultConnector();
@@ -27,8 +34,12 @@ contract VaultRegularBorrowableTest is Test {
         liabilityAsset = new MockERC20("Liability Asset", "LA", 18);
         collateralAsset1 = new MockERC20("Collateral Asset 1", "CA1", 18);
         collateralAsset2 = new MockERC20("Collateral Asset 2", "CA2", 6);
+        erc721CollateralAsset = new MockERC721("Collateral Asset", "CA");
+        
         irm = new IRMMock();
         oracle = new PriceOracleMock();
+        erc721_oracle = new ERC721PriceOracleMock();
+
 
         liabilityVault = new VaultRegularBorrowable(
             address(evc), liabilityAsset, irm, oracle, referenceAsset, "Liability Vault", "LV"
@@ -37,6 +48,9 @@ contract VaultRegularBorrowableTest is Test {
         collateralVault1 = new VaultSimple(address(evc), collateralAsset1, "Collateral Vault 1", "CV1");
 
         collateralVault2 = new VaultSimple(address(evc), collateralAsset2, "Collateral Vault 2", "CV2");
+
+        erc721CollateralVault = new ERC721Vault(address(evc), erc721CollateralAsset);
+
 
         irm.setInterestRate(10); // 10% APY
 
@@ -47,6 +61,17 @@ contract VaultRegularBorrowableTest is Test {
         oracle.setPrice(address(collateralAsset1), address(referenceAsset), 1e16); // 1 CA1 = 0.01 RA
         oracle.setPrice(address(collateralAsset2), address(referenceAsset), 1e17); // 1 CA2 = 0.1 RA
     }
+
+    function test_mintAndPriceERC721(address alice, address bob) public {
+        erc721CollateralAsset.mint(alice, 1);
+        erc721CollateralAsset.mint(alice, 2);
+        erc721CollateralAsset.mint(bob, 3);
+
+        erc721_oracle.setPrice(address(referenceAsset), address(erc721CollateralAsset), 1, 1e18);
+        erc721_oracle.setPrice(address(referenceAsset), address(erc721CollateralAsset), 2, 2e18);
+        erc721_oracle.setPrice(address(referenceAsset), address(erc721CollateralAsset), 3, 3e18);
+    }
+
 
     function mintAndApprove(address alice, address bob) public {
         liabilityAsset.mint(alice, 100e18);
@@ -65,6 +90,14 @@ contract VaultRegularBorrowableTest is Test {
         vm.prank(bob);
         collateralAsset2.approve(address(collateralVault2), type(uint256).max);
     }
+
+    function test_checkOraclePrices(address alice, address bob) public {
+        erc721_oracle.setPrice(address(referenceAsset), address(erc721CollateralAsset), 1, 1e18);
+        assertEq(erc721_oracle.getQuote(address(referenceAsset), address(erc721CollateralAsset), 1), 1e18);
+        
+    } 
+
+
 
     function test_RegularBorrowRepay(address alice, address bob) public {
         vm.assume(alice != address(0) && bob != address(0) && !evc.haveCommonOwner(alice, bob));

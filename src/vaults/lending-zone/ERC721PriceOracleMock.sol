@@ -3,6 +3,7 @@ pragma solidity ^0.8.19;
 
 import "openzeppelin/interfaces/IERC4626.sol";
 import "../../ERC20/ERC20CollateralWrapper.sol";
+import "forge-std/console.sol";
 
 contract ERC721PriceOracleMock {
 
@@ -14,13 +15,14 @@ contract ERC721PriceOracleMock {
     }
 
     function setPrice(address base, address nft_collection, uint256 id, uint256 priceValue) external {
+        console.log("Setting price: ", priceValue);
         prices[base][nft_collection][id] = priceValue;
     }
 
     function getQuote(address base, address nft_collection, uint256 id) external view returns (uint256 out) {
         uint256 price;
         (base, nft_collection, id, price) = _resolveOracle(base, nft_collection, id);
-
+        console.log("Price: ", price);
         out = price / 10 ** ERC20(base).decimals();
     }
 
@@ -40,6 +42,7 @@ contract ERC721PriceOracleMock {
     ) internal view returns (address, address, uint256, uint256) {
         // 1. Check if base/quote is configured.
         uint256 price = prices[base][nft_collection][id];
+        console.log("Price: ", price);
         return (base, nft_collection, id, price);
     }
 }

@@ -14,7 +14,7 @@ import {PriceOracleMock} from "../test/mocks/PriceOracleMock.sol";
 /// @notice This script is used for deploying the EVC and a couple vaults for testing purposes
 contract Deployment is Script {
     function run() public {
-        uint256 deployerPrivateKey = vm.deriveKey(vm.envString("MNEMONIC"), 0);
+        uint deployerPrivateKey = vm.envUint("PRIVATE_KEY");
         vm.startBroadcast(deployerPrivateKey);
 
         // deploy the EVC
