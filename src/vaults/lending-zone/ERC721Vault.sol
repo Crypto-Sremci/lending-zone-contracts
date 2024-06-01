@@ -107,7 +107,7 @@ contract ERC721Vault is VaultBase, Owned, IERC721Receiver, IERC721Vault {
     /// @notice Deposits an NFT with the certain id to the receiver.
     function deposit() public virtual callThroughEVC nonReentrant {
         address msgSender = _msgSender();
-        require(asset.ownerOf(id) == msgSender, "Not Owner");
+        // require(asset.ownerOf(id) == msgSender, "Not Owner");
 
         createVaultSnapshot();
 
@@ -131,7 +131,7 @@ contract ERC721Vault is VaultBase, Owned, IERC721Receiver, IERC721Vault {
 
         createVaultSnapshot();
 
-        asset.safeTransferFrom(msgSender, receiver, id);
+        asset.safeTransferFrom(address(this), receiver, id);
 
         totalSupply--;
 

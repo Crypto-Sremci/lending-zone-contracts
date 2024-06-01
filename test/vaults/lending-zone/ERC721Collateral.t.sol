@@ -81,6 +81,7 @@ contract ERC721CollateralTest is Test {
         console.log("ORACLE BASE ASSET USDC: ", address(liabilityAsset));
         assertEq(erc721_oracle.getQuote(address(liabilityAsset), address(collateralAsset), 3), 80e18);
 
+        vm.prank(bob);
         collateralVault = new ERC721Vault(address(evc), collateralAsset, 3);
 
         assertEq(collateralAsset.ownerOf(1), alice);
@@ -107,6 +108,15 @@ contract ERC721CollateralTest is Test {
         vm.prank(bob);
         collateralVault.deposit();
 
+        vm.prank(bob);
+        collateralVault.withdraw(bob);
+
+        vm.prank(bob);
+        collateralAsset.approve(address(collateralVault), 3);
+
+        vm.prank(bob);
+        collateralVault.deposit();
+
         console.log("Owner of ERC721: ", collateralAsset.ownerOf(3));
         console.log("Collateral Vault: ", address(collateralVault));
 
@@ -115,10 +125,22 @@ contract ERC721CollateralTest is Test {
         vm.prank(bob);
         evc.enableCollateral(bob, address(collateralVault));
 
-        console.log("Before final borrow");
         vm.prank(bob);
         liabilityVault.borrow(10e18, bob);
-        console.log("End of test"); 
+        console.log("Bob finished borrow"); 
+
+        assertEq(liabilityVault.debtOf(bob), 10e18);
+
+        assertEq(liabilityAsset.balanceOf(bob), 10e18);
+
+        vm.prank(bob);
+        liabilityAsset.approve(address(liabilityVault), 10000e18);
+
+        vm.prank(bob);
+        liabilityVault.repay(10e18, bob);
+
+        vm.prank(bob);
+        liabilityVault.disableController();
     }
 
     
